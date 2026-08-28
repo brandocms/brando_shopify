@@ -1,0 +1,61 @@
+<main
+  id="content"
+  data-shopify-product={@product.shopify_id}
+  data-catalog-source="local"
+  data-catalog-context={@product.context_key}
+>
+  <article class="shopify-e2e-product">
+    <p class="shopify-e2e-product__eyebrow">Synced from Shopify · rendered by Brando</p>
+    <h1 data-product-title>{@product.title}</h1>
+    <div data-product-description>{raw(@product.description_html || "")}</div>
+
+    <dl>
+      <div>
+        <dt>Vendor</dt><dd data-product-vendor>{@product.vendor}</dd>
+      </div>
+      <div>
+        <dt>SKU</dt><dd data-product-sku>{@variant && @variant.sku}</dd>
+      </div>
+      <div>
+        <dt>Inventory</dt><dd data-product-inventory>
+          {@variant && @variant.quantity_available}
+        </dd>
+      </div>
+      <div>
+        <dt>Synced</dt><dd data-product-synced-at>{@product.synced_at}</dd>
+      </div>
+    </dl>
+
+    <%= if @variant do %>
+      <p class="shopify-e2e-product__price" data-product-price>
+        {@variant.price} {@variant.currency_code}
+      </p>
+      <button type="button" data-add-to-cart data-merchandise-id={@variant.shopify_id}>
+        Add to cart
+      </button>
+    <% end %>
+
+    <p :if={@product.selling_plan_groups != []} data-selling-plan>
+      {get_in(hd(@product.selling_plan_groups), ["sellingPlans", "nodes", Access.at(0), "name"])}
+    </p>
+
+    <button type="button" data-open-cart>Open cart</button>
+  </article>
+
+  <brando-shopify-cart endpoint="/shopify/cart"></brando-shopify-cart>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const cart = document.querySelector("brando-shopify-cart")
+      const add = document.querySelector("[data-add-to-cart]")
+      const open = document.querySelector("[data-open-cart]")
+
+      add?.addEventListener("click", async () => {
+        cart.open()
+        await cart.add(add.dataset.merchandiseId, 1)
+      })
+
+      open?.addEventListener("click", () => cart.open())
+    })
+  </script>
+</main>

@@ -1,0 +1,47 @@
+## This file is a PO Template file.
+##
+## `msgid`s here are often extracted from source code.
+## Add new translations manually only if they're dynamic
+## translations that can't be statically extracted.
+
+msgid ""
+msgstr ""
+
+msgid "Shopping cart"
+msgstr ""
+
+msgid "Your cart"
+msgstr ""
+
+msgid "Close cart"
+msgstr ""
+
+msgid "Loading…"
+msgstr ""
+
+msgid "Your cart is empty."
+msgstr ""
+
+msgid "Product"
+msgstr ""
+
+msgid "Decrease quantity"
+msgstr ""
+
+msgid "Increase quantity"
+msgstr ""
+
+msgid "Remove"
+msgstr ""
+
+msgid "Remove item"
+msgstr ""
+
+msgid "Total"
+msgstr ""
+
+msgid "Updating…"
+msgstr ""
+
+msgid "Checkout"
+msgstr ""

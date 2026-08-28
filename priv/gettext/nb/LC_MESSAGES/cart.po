@@ -1,0 +1,43 @@
+msgid ""
+msgstr ""
+"Language: nb\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Shopping cart"
+msgstr "Handlekurv"
+
+msgid "Your cart"
+msgstr "Handlekurv"
+
+msgid "Close cart"
+msgstr "Lukk handlekurv"
+
+msgid "Loading…"
+msgstr "Laster …"
+
+msgid "Your cart is empty."
+msgstr "Handlekurven er tom."
+
+msgid "Product"
+msgstr "Produkt"
+
+msgid "Decrease quantity"
+msgstr "Færre"
+
+msgid "Increase quantity"
+msgstr "Flere"
+
+msgid "Remove"
+msgstr "Fjern"
+
+msgid "Remove item"
+msgstr "Fjern varen"
+
+msgid "Total"
+msgstr "Totalt"
+
+msgid "Updating…"
+msgstr "Oppdaterer …"
+
+msgid "Checkout"
+msgstr "Til kassen"
