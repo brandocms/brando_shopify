@@ -87,15 +87,21 @@ brando-shopify-cart[open] {
 }
 
 .brando-cart__image {
+  flex: 0 0 auto;
   width: 6rem;
   min-width: 0;
   overflow: hidden;
   border-radius: var(--brando-cart-radius);
 }
 
+/* `min-width` is reset explicitly because host stylesheets carry global image
+   rules — a lazyload `img { min-width: 100% }` is common, and no width can beat
+   it. */
 .brando-cart__image img {
   display: block;
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
   height: auto;
 }
 
@@ -189,12 +195,7 @@ brando-shopify-cart[open] {
   animation: brando-cart-pending 900ms ease-in-out infinite alternate;
 }
 
-.brando-cart__pending img {
-  display: block;
-  width: 6rem;
-  height: auto;
-  border-radius: var(--brando-cart-radius);
-}
+
 
 .brando-cart__pending-variant {
   margin-block-start: 0.25rem;

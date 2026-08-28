@@ -158,10 +158,16 @@ export class BrandoShopifyCart extends HTMLElement {
     row.setAttribute("aria-live", "polite");
 
     if (image) {
+      // Wrapped exactly as a real line's image is, so the pending row lines up
+      // with the ones around it and inherits the same sizing rather than needing
+      // its own.
+      const frame = document.createElement("div");
+      frame.className = "brando-cart__image";
       const img = document.createElement("img");
       img.src = image;
       img.alt = "";
-      row.append(img);
+      frame.append(img);
+      row.append(frame);
     }
 
     const details = document.createElement("div");
