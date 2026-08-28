@@ -174,10 +174,26 @@ export class BrandoShopifyCart extends HTMLElement {
       row.append(amount);
     }
 
-    // Into the line list when there is one, so it reads as a line. An empty
-    // cart has no list, so it goes at the top of the drawer instead.
+    // Into the line list when there is one, so it reads as a line.
     const lines = this.querySelector(".brando-cart__lines");
-    (lines || this).prepend(row);
+    if (lines) {
+      lines.prepend(row);
+      return;
+    }
+
+    // An empty cart renders no line list — and that is the most common case for
+    // a first add, so getting it wrong would miss the point. Put the row inside
+    // the panel, under the header; prepending to the element itself would place
+    // it above the drawer's own chrome.
+    const panel = this.querySelector(".brando-cart__panel");
+    if (!panel) {
+      this.prepend(row);
+      return;
+    }
+
+    const header = panel.querySelector(".brando-cart__header");
+    if (header) header.after(row);
+    else panel.prepend(row);
   }
 
   add(merchandiseId, quantity = 1, attributes = [], options = {}) {
