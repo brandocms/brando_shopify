@@ -166,9 +166,40 @@ delegates clicks from its root, so swapped-in markup needs no rebinding:
 | `data-cart-action="checkout"` | fetches a fresh checkout URL and navigates |
 
 `headless` consumers never send the header, so they never pay for rendering they
-would throw away. If the component raises, the JSON is still correct and the
-element falls back to its own renderer — a broken template does not take the
-cart down with it.
+would throw away. If the component raises, the error is logged and the JSON is
+still correct, so the rest of the page keeps working.
+
+There is deliberately **no client-side fallback renderer**. Two renderers drift,
+and the drift would only ever be visible when the server one failed — exactly
+when nobody is looking. Shopify's own themes render the cart on the server too,
+through the Section Rendering API; measured against a live store, rendering the
+component adds about 45ms to a mutation that spends 600ms waiting on the
+Storefront API.
+
+### Optimistic lines
+
+That 600ms is the real cost of rendering server-side, and Shopify names it: the
+drawer opens and shows nothing until the response lands. The remedy is to draw
+the line from what the page already knows:
+
+```js
+await cart.add(variantId, 1, [], {
+  pending: {
+    title: "Samarbeidsgenser",
+    variant: "M",
+    price: "949 kr",     // as rendered on the page, not formatted again
+    image: imageEl.src,
+  },
+});
+```
+
+`add/4` opens the drawer, inserts a `.brando-cart__pending` row, and the server
+response replaces it. The row is markup-only — no money formatting, no
+availability logic — so there is nothing in it to drift from the component.
+
+Pass `price` already formatted, read back from the page. Formatting it in the
+browser would put money logic back where rendering server-side was meant to
+remove it.
 
 ### Subtotal, not total
 

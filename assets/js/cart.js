@@ -123,7 +123,69 @@ export class BrandoShopifyCart extends HTMLElement {
     return this.enqueue(() => this.request("", { method: "GET" }));
   }
 
+  /**
+   * Draws a line before the server has confirmed it.
+   *
+   * A cart mutation is a Storefront round trip — measured at around 600ms
+   * against a real store — and the drawer would otherwise open empty for all of
+   * it. Shopify names this as the cost of rendering the cart server-side and
+   * gives the same remedy: show what the page already knows, reconcile when the
+   * response lands.
+   *
+   * `price` is passed in already formatted, taken from the page. Formatting it
+   * here would put money logic back in the browser, which is what rendering on
+   * the server was meant to avoid.
+   */
+  showPending({ title, variant, price, image } = {}) {
+    if (this.hasAttribute("headless") || !title) return;
+
+    const row = document.createElement("div");
+    row.className = "brando-cart__pending";
+    row.setAttribute("data-cart-pending", "");
+    // Announced, because the visual cue is off-screen for a screen reader.
+    row.setAttribute("aria-live", "polite");
+
+    if (image) {
+      const img = document.createElement("img");
+      img.src = image;
+      img.alt = "";
+      row.append(img);
+    }
+
+    const details = document.createElement("div");
+    const name = document.createElement("div");
+    name.className = "brando-cart__pending-title";
+    name.textContent = title;
+    details.append(name);
+
+    if (variant) {
+      const sub = document.createElement("div");
+      sub.className = "brando-cart__pending-variant";
+      sub.textContent = variant;
+      details.append(sub);
+    }
+
+    row.append(details);
+
+    if (price) {
+      const amount = document.createElement("div");
+      amount.className = "brando-cart__pending-price";
+      amount.textContent = price;
+      row.append(amount);
+    }
+
+    // Into the line list when there is one, so it reads as a line. An empty
+    // cart has no list, so it goes at the top of the drawer instead.
+    const lines = this.querySelector(".brando-cart__lines");
+    (lines || this).prepend(row);
+  }
+
   add(merchandiseId, quantity = 1, attributes = [], options = {}) {
+    if (options.pending) {
+      this.open();
+      this.showPending(options.pending);
+    }
+
     const line = { merchandiseId, quantity, attributes }
     if (options.sellingPlanId) line.sellingPlanId = options.sellingPlanId
 
@@ -269,12 +331,15 @@ export class BrandoShopifyCart extends HTMLElement {
     } else if (this.hasAttribute("headless")) {
       // Nothing to draw.
     } else if (this.html !== null) {
-      // Rendered from the server's HEEx component. Its buttons carry
+      // Rendered from the server's cart component. Its buttons carry
       // data-cart-action and are handled by the delegated listener, so swapping
       // the markup needs no rebinding.
+      //
+      // There is deliberately no client-side fallback renderer. Two renderers
+      // drift, and the drift would only ever show when the server one failed —
+      // exactly when nobody is looking. Shopify's own themes render the cart on
+      // the server too, through the Section Rendering API.
       this.innerHTML = this.html;
-    } else {
-      this.renderDefault(actions);
     }
   }
 
@@ -315,150 +380,10 @@ export class BrandoShopifyCart extends HTMLElement {
     };
   }
 
-  renderDefault(actions) {
-    this.replaceChildren();
-    const panel = element("div", { class: "brando-cart__panel", part: "panel" });
-    const header = element("header", { class: "brando-cart__header", part: "header" });
-    header.append(
-      element("h2", { class: "brando-cart__title", text: this.labels.title }),
-      button(this.labels.close, "brando-cart__close", actions.close, "close", "×"),
-    );
-    panel.append(header);
-
-    if (this.error) {
-      panel.append(
-        element("p", {
-          class: "brando-cart__error",
-          part: "error",
-          text: this.error.message,
-          role: "alert",
-        }),
-      );
-    }
-
-    const lines = this.cart?.lines?.nodes || [];
-
-    if (lines.length === 0) {
-      panel.append(
-        element("p", {
-          class: "brando-cart__empty",
-          part: "empty",
-          text: this.loading ? this.labels.loading : this.labels.empty,
-        }),
-      );
-    } else {
-      const list = element("ul", { class: "brando-cart__lines", part: "lines" });
-      lines.forEach((line) => list.append(this.renderLine(line, actions)));
-      panel.append(list, this.renderFooter(actions));
-    }
-
-    panel.setAttribute("aria-busy", String(this.loading));
-    this.append(panel);
-  }
-
-  renderLine(line, actions) {
-    const variant = line.merchandise || {};
-    const item = element("li", { class: "brando-cart__line", part: "line" });
-
-    if (variant.image?.url) {
-      item.append(
-        element("img", {
-          class: "brando-cart__image",
-          src: variant.image.url,
-          alt: variant.image.altText || "",
-          loading: "lazy",
-          width: "96",
-          height: "96",
-        }),
-      );
-    }
-
-    const details = element("div", { class: "brando-cart__details" });
-    details.append(
-      element("p", {
-        class: "brando-cart__product",
-        text: variant.product?.title || variant.title || this.labels.product,
-      }),
-    );
-
-    if (variant.title && variant.title !== this.labels.defaultVariant) {
-      details.append(
-        element("p", { class: "brando-cart__variant", text: variant.title }),
-      );
-    }
-
-    const controls = element("div", { class: "brando-cart__quantity", part: "quantity" });
-    controls.append(
-      button(this.labels.decrease, "", () => actions.update(line.id, line.quantity - 1), "", "−"),
-      element("span", {
-        class: "brando-cart__quantity-value",
-        text: String(line.quantity),
-        "aria-live": "polite",
-      }),
-      button(this.labels.increase, "", () => actions.update(line.id, line.quantity + 1), "", "+"),
-      button(this.labels.removeItem, "brando-cart__remove", () => actions.remove(line.id), "", this.labels.remove),
-    );
-    details.append(controls);
-
-    item.append(
-      details,
-      element("data", {
-        class: "brando-cart__line-total",
-        value: line.cost?.totalAmount?.amount || "",
-        text: money(line.cost?.totalAmount),
-      }),
-    );
-    return item;
-  }
-
-  renderFooter(actions) {
-    const footer = element("footer", { class: "brando-cart__footer", part: "footer" });
-    footer.append(
-      element("div", { class: "brando-cart__total", text: this.labels.total }),
-      element("data", {
-        class: "brando-cart__total-amount",
-        value: this.cart?.cost?.totalAmount?.amount || "",
-        text: money(this.cart?.cost?.totalAmount),
-      }),
-      button(
-        this.loading ? this.labels.updating : this.labels.checkout,
-        "brando-cart__checkout",
-        actions.checkout,
-        "checkout",
-      ),
-    );
-    return footer;
-  }
 }
 
-function element(tag, attributes = {}) {
-  const node = document.createElement(tag);
-  Object.entries(attributes).forEach(([key, value]) => {
-    if (key === "text") node.textContent = value;
-    else if (value !== undefined && value !== null && value !== "") node.setAttribute(key, value);
-  });
-  return node;
-}
 
-function button(label, className, onClick, part = "", text = label) {
-  const node = element("button", {
-    type: "button",
-    class: className,
-    part,
-    "aria-label": label,
-    text,
-  });
-  node.addEventListener("click", onClick);
-  return node;
-}
 
-function money(value) {
-  if (!value?.amount || !value?.currencyCode) return "";
-  return new Intl.NumberFormat(document.documentElement.lang || undefined, {
-    style: "currency",
-    currency: value.currencyCode,
-  }).format(Number(value.amount));
-}
 
 if (!customElements.get("brando-shopify-cart")) {
   customElements.define("brando-shopify-cart", BrandoShopifyCart);
