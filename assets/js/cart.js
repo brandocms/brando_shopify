@@ -53,6 +53,7 @@ export class BrandoShopifyCart extends HTMLElement {
     this.error = null;
     this.renderer = null;
     this.html = null;
+    this.pending = null;
     this.labels = { ...DEFAULT_LABELS };
     this.queue = Promise.resolve();
     this.abortController = null;
@@ -136,8 +137,19 @@ export class BrandoShopifyCart extends HTMLElement {
    * here would put money logic back in the browser, which is what rendering on
    * the server was meant to avoid.
    */
-  showPending({ title, variant, price, image } = {}) {
-    if (this.hasAttribute("headless") || !title) return;
+  showPending(item) {
+    if (this.hasAttribute("headless") || !item?.title) return;
+
+    // Held in state, not just inserted: every render replaces innerHTML with
+    // the server's markup, and the request starts with one. Without this the
+    // row was created and destroyed in the same tick.
+    this.pending = item;
+    this.renderPending();
+  }
+
+  renderPending() {
+    const { title, variant, price, image } = this.pending || {};
+    if (!title) return;
 
     const row = document.createElement("div");
     row.className = "brando-cart__pending";
@@ -294,6 +306,7 @@ export class BrandoShopifyCart extends HTMLElement {
       throw error;
     } finally {
       this.loading = false;
+      this.pending = null;
       this.render();
     }
   }
@@ -335,6 +348,12 @@ export class BrandoShopifyCart extends HTMLElement {
   }
 
   render() {
+    // A cart mutation is a Storefront round trip, around 600ms. The optimistic
+    // row covers adding; quantity changes and removals have nothing to stand in
+    // for them, so the element carries the state and the stylesheet decides what
+    // it looks like.
+    this.toggleAttribute("data-loading", this.loading);
+
     const actions = {
       update: (id, quantity) => this.update(id, quantity),
       remove: (id) => this.remove(id),
@@ -356,6 +375,7 @@ export class BrandoShopifyCart extends HTMLElement {
       // exactly when nobody is looking. Shopify's own themes render the cart on
       // the server too, through the Section Rendering API.
       this.innerHTML = this.html;
+      if (this.pending) this.renderPending();
     }
   }
 

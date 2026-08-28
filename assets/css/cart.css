@@ -79,22 +79,27 @@ brando-shopify-cart[open] {
   list-style: none;
 }
 
-.brando-cart__line {
+.brando-cart__line-inner {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
   align-items: start;
   gap: 1rem;
 }
 
 .brando-cart__image {
-  flex: 0 0 6rem;
   width: 6rem;
   min-width: 0;
-  height: 6rem;
+  overflow: hidden;
   border-radius: var(--brando-cart-radius);
-  object-fit: cover;
+}
+
+.brando-cart__image img {
+  display: block;
+  width: 100%;
+  height: auto;
 }
 
 .brando-cart__details {
-  flex: 1;
   min-width: 0;
 }
 
@@ -109,6 +114,8 @@ brando-shopify-cart[open] {
 }
 
 .brando-cart__quantity {
+  display: flex;
+  align-items: center;
   gap: 0.625rem;
   margin-block-start: 0.75rem;
 }
@@ -134,14 +141,74 @@ brando-shopify-cart[open] {
 
 .brando-cart__footer {
   display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 0.5rem 1rem;
+  gap: 0.5rem;
   padding-block-start: 1rem;
   border-top: 1px solid var(--brando-cart-border);
 }
 
+.brando-cart__discount,
+.brando-cart__total {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
 .brando-cart__total {
   font-weight: 600;
+}
+
+/* Says where the rest of the price comes from. Shopify reports the amount as an
+   estimate until shipping is settled, so the row above it is a subtotal. */
+.brando-cart__note {
+  margin: 0;
+  color: var(--brando-cart-muted);
+  font-size: 0.875em;
+}
+
+.brando-cart__line-compare {
+  display: block;
+  color: var(--brando-cart-muted);
+  font-size: 0.875em;
+}
+
+.brando-cart__unavailable {
+  margin-block-start: 0.25rem;
+  color: var(--brando-cart-muted);
+  font-size: 0.875em;
+}
+
+/* The optimistic line, between the click and Shopify's answer. Dimmed and
+   inert: it is a promise, not a fact. */
+.brando-cart__pending {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
+  gap: 1rem;
+  padding-block: var(--brando-cart-gap);
+  opacity: 0.5;
+  animation: brando-cart-pending 900ms ease-in-out infinite alternate;
+}
+
+.brando-cart__pending img {
+  display: block;
+  width: 6rem;
+  height: auto;
+  border-radius: var(--brando-cart-radius);
+}
+
+.brando-cart__pending-variant {
+  margin-block-start: 0.25rem;
+  color: var(--brando-cart-muted);
+  font-size: 0.875em;
+}
+
+@keyframes brando-cart-pending {
+  from { opacity: 0.4; }
+  to { opacity: 0.7; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brando-cart__pending { animation: none; }
 }
 
 .brando-cart__checkout {
@@ -176,4 +243,41 @@ brando-shopify-cart[open] {
   from {
     translate: 100% 0;
   }
+}
+
+/* A mutation is in flight. The optimistic row covers adding; this covers the
+   rest — quantity changes and removals, which otherwise sit still for the whole
+   round trip with nothing to show for it. */
+brando-shopify-cart[data-loading] .brando-cart__lines,
+brando-shopify-cart[data-loading] .brando-cart__footer {
+  opacity: 0.55;
+  transition: opacity 150ms ease;
+}
+
+brando-shopify-cart[data-loading] .brando-cart__quantity button,
+brando-shopify-cart[data-loading] .brando-cart__checkout {
+  pointer-events: none;
+}
+
+/* Nothing has arrived from the server yet — the first refresh after the element
+   connects. Without it the drawer is blank if a buyer opens it that quickly. */
+brando-shopify-cart:not([data-loading]):empty::after,
+brando-shopify-cart[data-loading]:empty::after {
+  content: "";
+  display: block;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin: 3rem auto;
+  border: 2px solid var(--brando-cart-border);
+  border-top-color: var(--brando-cart-fg);
+  border-radius: 50%;
+  animation: brando-cart-spin 700ms linear infinite;
+}
+
+@keyframes brando-cart-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  brando-shopify-cart:empty::after { animation: none; }
 }
