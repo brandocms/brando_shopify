@@ -418,6 +418,11 @@ Use the resulting HTTPS URL as the subscription endpoint. A free tunnel's
 hostname changes on restart, so re-subscribe after each one, or pin a named
 tunnel.
 
+Subscriptions belong to the app, not to the tunnel, so they survive the tunnel
+dying — pointing at a URL that no longer resolves. Shopify retries a failing
+delivery and eventually stops; re-subscribing with the new URL is what fixes it,
+and reconciliation covers the gap in the meantime.
+
 Expose the endpoint over HTTPS and subscribe the following topics:
 
 - `products/create`
