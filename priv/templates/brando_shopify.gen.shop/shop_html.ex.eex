@@ -1,0 +1,16 @@
+defmodule <%= @html_module %> do
+  use <%= @web_module %>, :html
+  use Phoenix.Component
+
+  # The grid, card, image, price and variant picker come from the package. What
+  # stays here is what it cannot know: your routes.
+  import BrandoShopify.Components.Catalog
+
+  embed_templates "<%= @context_file %>_html/*"
+
+  @doc "Where a product lives on this site."
+  def product_path(product), do: "<%= @path %>/product/#{product.handle}"
+
+  @doc "Where a collection lives."
+  def collection_path(collection), do: "<%= @path %>/#{collection.handle}"
+end

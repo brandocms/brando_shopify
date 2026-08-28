@@ -33,7 +33,11 @@ export const DEFAULT_LABELS = {
   increase: "Increase quantity",
   remove: "Remove",
   removeItem: "Remove item",
+  subtotal: "Subtotal",
   total: "Total",
+  discount: "Discount",
+  unavailable: "No longer available",
+  shipping_at_checkout: "Shipping is calculated at checkout.",
   updating: "Updating…",
   checkout: "Checkout",
 };
@@ -48,6 +52,7 @@ export class BrandoShopifyCart extends HTMLElement {
     this.loading = false;
     this.error = null;
     this.renderer = null;
+    this.html = null;
     this.labels = { ...DEFAULT_LABELS };
     this.queue = Promise.resolve();
     this.abortController = null;
@@ -67,6 +72,9 @@ export class BrandoShopifyCart extends HTMLElement {
       }
     }
 
+    this.onAction = this.handleAction.bind(this);
+    this.addEventListener("click", this.onAction);
+
     this.setAttribute("role", "region");
     this.setAttribute("aria-label", this.getAttribute("aria-label") || this.labels.region);
     this.hidden = !this.hasAttribute("open");
@@ -77,6 +85,7 @@ export class BrandoShopifyCart extends HTMLElement {
 
   disconnectedCallback() {
     this.abortController?.abort();
+    if (this.onAction) this.removeEventListener("click", this.onAction);
   }
 
   attributeChangedCallback(name) {
@@ -189,6 +198,7 @@ export class BrandoShopifyCart extends HTMLElement {
 
     try {
       const payload = await this.fetchJSON(path, options);
+      this.html = typeof payload.html === "string" ? payload.html : null;
       this.cart = payload.cart;
       this.warnings = payload.warnings || [];
       this.dispatchEvent(
@@ -218,6 +228,10 @@ export class BrandoShopifyCart extends HTMLElement {
       credentials: "same-origin",
       headers: {
         Accept: "application/json",
+        // Asks the plug to render its cart component and return the markup
+        // alongside the JSON. Headless consumers never send it, so they never
+        // pay for rendering they would throw away.
+        ...(this.hasAttribute("headless") ? {} : { "x-brando-cart-html": "1" }),
         "Content-Type": "application/json",
         ...this.csrfHeader(),
       },
@@ -252,8 +266,41 @@ export class BrandoShopifyCart extends HTMLElement {
 
     if (typeof this.renderer === "function") {
       this.renderer(this, this.state(), actions);
-    } else if (!this.hasAttribute("headless")) {
+    } else if (this.hasAttribute("headless")) {
+      // Nothing to draw.
+    } else if (this.html !== null) {
+      // Rendered from the server's HEEx component. Its buttons carry
+      // data-cart-action and are handled by the delegated listener, so swapping
+      // the markup needs no rebinding.
+      this.innerHTML = this.html;
+    } else {
       this.renderDefault(actions);
+    }
+  }
+
+  // One listener on the element, not one per button: the markup is replaced on
+  // every cart change, and per-node listeners would go with it.
+  handleAction(event) {
+    const trigger = event.target.closest("[data-cart-action]");
+    if (!trigger || !this.contains(trigger)) return;
+
+    const lineId = trigger.getAttribute("data-line-id");
+
+    switch (trigger.getAttribute("data-cart-action")) {
+      case "close":
+        this.close();
+        break;
+      case "checkout":
+        this.checkout();
+        break;
+      case "remove":
+        if (lineId) this.remove(lineId);
+        break;
+      case "quantity":
+        if (lineId) {
+          this.update(lineId, Number(trigger.getAttribute("data-quantity")));
+        }
+        break;
     }
   }
 

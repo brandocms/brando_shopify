@@ -43,6 +43,8 @@ defmodule BrandoShopify.Plug.Cart do
 
   import Plug.Conn
 
+  require Logger
+
   alias BrandoShopify.Cart
   alias BrandoShopify.Cart.Result
   alias BrandoShopify.Error
@@ -53,13 +55,22 @@ defmodule BrandoShopify.Plug.Cart do
       store: Keyword.get(opts, :store, :default),
       session_key: Keyword.get(opts, :session_key, "brando_shopify_cart_id"),
       encryption_salt: Keyword.get(opts, :encryption_salt, "brando_shopify/cart/session/v1"),
-      max_age: Keyword.get(opts, :max_age, 14 * 24 * 60 * 60)
+      max_age: Keyword.get(opts, :max_age, 14 * 24 * 60 * 60),
+      # Rendered when the request asks for text/html. Any 1-arity function
+      # component taking `cart`, `labels`, `error` and `format` assigns will do —
+      # that is how a host swaps the whole drawer for its own.
+      component: Keyword.get(opts, :component, &BrandoShopify.Components.Cart.cart/1),
+      labels: Keyword.get(opts, :labels, %{}),
+      format: Keyword.get(opts, :format)
     }
   end
 
   @impl Plug
   def call(conn, opts) do
     conn
+    # Stashed so the response helpers can reach the rendering options without
+    # every one of them having to thread `opts` through.
+    |> put_private(:brando_shopify_cart_opts, opts)
     |> fetch_session()
     |> dispatch(opts)
   end
@@ -183,7 +194,7 @@ defmodule BrandoShopify.Plug.Cart do
         _ -> conn
       end
 
-    json(conn, 200, %{
+    respond(conn, 200, %{
       cart: Cart.public_view(result.cart),
       warnings: result.warnings
     })
@@ -192,7 +203,60 @@ defmodule BrandoShopify.Plug.Cart do
   defp mutation_json(conn, {:error, %Error{} = error}, _opts), do: error_json(conn, error)
 
   defp cart_json(conn, cart) do
-    json(conn, 200, %{cart: Cart.public_view(cart), warnings: []})
+    respond(conn, 200, %{cart: Cart.public_view(cart), warnings: []})
+  end
+
+  # The cart is client state, but its markup does not have to be built in the
+  # browser. When the element asks for it, the rendered drawer rides along in the
+  # JSON payload as `html`.
+  #
+  # Alongside rather than instead of the JSON: the element still needs the cart
+  # itself for `state()`, for the count, and for what it hands to `cart:change`
+  # listeners. Returning only markup would leave all of that empty.
+  #
+  # Opt-in by header, so `headless` consumers never pay for rendering they throw
+  # away.
+  defp respond(conn, status, payload) do
+    json(conn, status, maybe_render(conn, payload))
+  end
+
+  defp maybe_render(conn, payload) do
+    with true <- wants_html?(conn),
+         %{} = opts <- conn.private[:brando_shopify_cart_opts],
+         component when is_function(component, 1) <- Map.get(opts, :component) do
+      assigns = %{
+        cart: payload[:cart],
+        labels: Map.get(opts, :labels, %{}),
+        format: Map.get(opts, :format),
+        error: get_in(payload, [:error, :message])
+      }
+
+      Map.put(payload, :html, render_to_string(component, assigns))
+    else
+      _ -> payload
+    end
+  rescue
+    exception ->
+      # A broken template must not take the cart down with it: the JSON is still
+      # correct, and the element falls back to its own renderer.
+      Logger.error("BrandoShopify: cart component raised — #{Exception.message(exception)}")
+      payload
+  end
+
+  defp wants_html?(conn) do
+    get_req_header(conn, "x-brando-cart-html") != []
+  end
+
+  defp render_to_string(component, assigns) do
+    # `__changed__: nil` turns change tracking off. Without the key at all,
+    # `Phoenix.Component.assign/3` refuses the map — it cannot tell a
+    # hand-assembled map from a mistake. This is a one-shot render, so there is
+    # nothing to track.
+    assigns
+    |> Map.put(:__changed__, nil)
+    |> component.()
+    |> Phoenix.HTML.Safe.to_iodata()
+    |> IO.iodata_to_binary()
   end
 
   defp error_json(conn, %Error{} = error) do
@@ -206,7 +270,7 @@ defmodule BrandoShopify.Plug.Cart do
         :invalid_response -> 502
       end
 
-    json(conn, status, %{
+    respond(conn, status, %{
       error: %{
         kind: error.kind,
         message: error.message,

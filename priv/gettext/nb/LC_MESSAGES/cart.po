@@ -41,3 +41,15 @@ msgstr "Oppdaterer …"
 
 msgid "Checkout"
 msgstr "Til kassen"
+
+msgid "Subtotal"
+msgstr "Delsum"
+
+msgid "Discount"
+msgstr "Rabatt"
+
+msgid "No longer available"
+msgstr "Ikke tilgjengelig lenger"
+
+msgid "Shipping is calculated at checkout."
+msgstr "Frakt beregnes i kassen."

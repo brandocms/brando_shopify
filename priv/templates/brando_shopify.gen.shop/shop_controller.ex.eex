@@ -1,0 +1,40 @@
+defmodule <%= @controller_module %> do
+  use <%= @web_module %>, :controller
+
+  alias <%= @context_module %>
+
+  action_fallback <%= @web_module %>.FallbackController
+
+  @doc "The main listing, with the partner rule applied."
+  def list(conn, _params) do
+    conn
+    |> assign(:products, <%= @context_module %>.list_products())
+    |> render(:list)
+  end
+
+  @doc "One product."
+  def detail(conn, %{"handle" => handle}) do
+    with {:ok, product} <- <%= @context_module %>.get_product(handle) do
+      conn
+      |> assign(:entry, product)
+      |> assign(:collections, <%= @context_module %>.list_collections_for(product))
+      |> render(:detail)
+    end
+  end
+
+  @doc """
+  A collection's own page.
+
+  Deliberately not filtered by the partner rule: a partner's page is exactly
+  where their own products belong, including the ones hidden from the main
+  listing.
+  """
+  def collection(conn, %{"handle" => handle}) do
+    with {:ok, collection} <- <%= @context_module %>.get_collection(handle) do
+      conn
+      |> assign(:entry, collection)
+      |> assign(:products, <%= @context_module %>.list_products_in_collection(handle))
+      |> render(:collection)
+    end
+  end
+end

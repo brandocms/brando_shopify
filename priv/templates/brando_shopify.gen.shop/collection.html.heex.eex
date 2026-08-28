@@ -1,0 +1,19 @@
+<main id="content">
+  <section class="shop">
+    <header class="shop-header">
+      <a href="<%= @path %>" class="back">&larr; Shop</a>
+      <h1>{@entry.title}</h1>
+      <div :if={@entry.description_html not in [nil, ""]} class="intro">
+        {Phoenix.HTML.raw(@entry.description_html)}
+      </div>
+    </header>
+
+    <%%!-- Deliberately not filtered by the partner rule: a partner's own page is
+          where their products belong, including the one hidden from the listing. --%>
+    <.product_grid products={@products} href={&product_path/1}>
+      <:empty>
+        <p class="empty">Nothing in this collection yet.</p>
+      </:empty>
+    </.product_grid>
+  </section>
+</main>

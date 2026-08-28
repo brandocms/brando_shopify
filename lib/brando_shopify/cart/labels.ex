@@ -34,7 +34,11 @@ defmodule BrandoShopify.Cart.Labels do
       "increase" => dgettext("cart", "Increase quantity"),
       "remove" => dgettext("cart", "Remove"),
       "removeItem" => dgettext("cart", "Remove item"),
+      "subtotal" => dgettext("cart", "Subtotal"),
       "total" => dgettext("cart", "Total"),
+      "discount" => dgettext("cart", "Discount"),
+      "unavailable" => dgettext("cart", "No longer available"),
+      "shipping_at_checkout" => dgettext("cart", "Shipping is calculated at checkout."),
       "updating" => dgettext("cart", "Updating…"),
       "checkout" => dgettext("cart", "Checkout")
     }

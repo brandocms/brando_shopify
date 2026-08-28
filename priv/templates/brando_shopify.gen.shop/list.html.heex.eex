@@ -1,0 +1,21 @@
+<main id="content">
+  <section class="shop">
+    <header class="shop-header">
+      <h1>Shop</h1>
+    </header>
+
+    <.product_grid products={@products} href={&product_path/1}>
+      <:card :let={product}>
+        <.product_card product={product} href={product_path(product)}>
+          <:badge :let={p}>
+            <span :if={p.sold_out?} class="badge">Sold out</span>
+          </:badge>
+        </.product_card>
+      </:card>
+
+      <:empty>
+        <p class="empty">No products yet.</p>
+      </:empty>
+    </.product_grid>
+  </section>
+</main>

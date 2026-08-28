@@ -45,3 +45,15 @@ msgstr ""
 
 msgid "Checkout"
 msgstr ""
+
+msgid "Subtotal"
+msgstr ""
+
+msgid "Discount"
+msgstr ""
+
+msgid "No longer available"
+msgstr ""
+
+msgid "Shipping is calculated at checkout."
+msgstr ""

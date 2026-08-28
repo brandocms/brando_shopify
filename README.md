@@ -117,6 +117,42 @@ the state can live in the CMS and be flipped without a deploy:
 visibility: {MyApp.Shop, :visibility, []}
 ```
 
+## Storefront components
+
+`BrandoShopify.Components.Catalog` and `BrandoShopify.Components.Cart` render the
+catalogue and the cart. Every component works with no slots at all, and every
+part of one can be replaced without giving up the rest.
+
+```heex
+<.product_grid products={@products} href={&~p"/shop/#{&1.handle}"} />
+```
+
+Slots receive **presented** data — prices formatted, images flattened,
+availability resolved — so overriding markup does not mean re-deriving what the
+default had:
+
+```heex
+<.product_card product={@product} href={@href}>
+  <:badge :let={p}><span :if={p.sold_out?}>Sold out</span></:badge>
+</.product_card>
+```
+
+To scaffold the wiring around them — a context with the partner rule, a
+controller, templates:
+
+```bash
+mix brando_shopify.gen.shop --path /shop --partner-collections partner-one
+```
+
+It generates the parts the package cannot know: your routes and your partner
+collections. The components stay in the package, so improvements reach you
+rather than freezing into a copy.
+
+See [Brando integration](docs/brando-integration.md) for the slots each one
+exposes, and [Cart](docs/cart.md) for the cart element.
+
+## Oban
+
 Every worker in this package runs on the `:shopify` queue. Without it, jobs are
 inserted and never execute:
 

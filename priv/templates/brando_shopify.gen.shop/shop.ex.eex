@@ -1,0 +1,136 @@
+defmodule <%= @context_module %> do
+  @moduledoc """
+  Reads the Shopify catalogue that `brando_shopify` syncs into our own Postgres.
+
+  Every query here is local. The Admin sync already put products, variants and
+  collections in our tables, so listing and product pages need no Shopify round
+  trip — which is also why they stay fast and keep working when Shopify does not.
+
+  The Storefront API is only needed for two things the sync does not cover:
+  context-specific prices and translations, and the cart.
+  """
+
+  import Ecto.Query
+
+  alias BrandoShopify.Catalog.Collection
+  alias BrandoShopify.Catalog.CollectionProduct
+  alias BrandoShopify.Catalog.Product
+  alias <%= @base %>.Repo
+
+  @store "default"
+
+  @doc """
+  Collections treated as partner groups.
+
+  A product belonging *only* to one of these is hidden from the main listing.
+  """
+  def partner_handles, do: <%= inspect(@partner_collections) %>
+
+  @doc """
+  Products for the main listing.
+
+  A product is hidden only when *every* collection it belongs to is a partner
+  collection. Belonging to a partner collection AND something else keeps it
+  visible — the case a `NOT IN partner_collection` filter gets wrong, and it
+  would hide a product the shop actually sells.
+
+  Pass `:partner_handles` to override which collections count.
+  """
+  def list_products(opts \\ []) do
+    store = opts[:store] || @store
+    partner_ids = collection_ids(opts[:partner_handles] || partner_handles(), store)
+
+    memberships =
+      from(cp in CollectionProduct,
+        where: cp.store == ^store,
+        group_by: cp.product_id,
+        select: %{
+          product_id: cp.product_id,
+          total: count(cp.collection_id),
+          partner: filter(count(cp.collection_id), cp.collection_id in ^partner_ids)
+        }
+      )
+
+    from(p in Product,
+      left_join: m in subquery(memberships),
+      on: m.product_id == p.id,
+      where: p.store == ^store and is_nil(p.deleted_at) and p.status == :active,
+      where: is_nil(m.product_id) or m.partner == 0 or m.total > m.partner,
+      order_by: [asc: p.title]
+    )
+    |> Repo.all()
+  end
+
+  @doc "Products in one collection, by handle."
+  def list_products_in_collection(handle, opts \\ []) do
+    store = opts[:store] || @store
+
+    from(p in Product,
+      # Joining on `store` as well as the ids is not belt-and-braces: the join
+      # table's primary key is (store, collection_id, product_id).
+      join: cp in CollectionProduct,
+      on: cp.product_id == p.id and cp.store == p.store,
+      join: c in Collection,
+      on: c.id == cp.collection_id and c.store == cp.store,
+      where: p.store == ^store and c.handle == ^handle,
+      where: is_nil(p.deleted_at) and is_nil(c.deleted_at) and p.status == :active,
+      order_by: [asc: p.title]
+    )
+    |> Repo.all()
+  end
+
+  @doc "One product by handle, with variants preloaded in Shopify's order."
+  def get_product(handle, opts \\ []) do
+    store = opts[:store] || @store
+
+    query =
+      from(p in Product,
+        where: p.store == ^store and p.handle == ^handle,
+        where: is_nil(p.deleted_at) and p.status == :active,
+        preload: [variants: ^from(v in BrandoShopify.Catalog.Variant, order_by: v.position)]
+      )
+
+    case Repo.one(query) do
+      nil -> {:error, {:product, :not_found}}
+      product -> {:ok, product}
+    end
+  end
+
+  @doc "One collection by handle."
+  def get_collection(handle, opts \\ []) do
+    store = opts[:store] || @store
+
+    query =
+      from(c in Collection,
+        where: c.store == ^store and c.handle == ^handle and is_nil(c.deleted_at)
+      )
+
+    case Repo.one(query) do
+      nil -> {:error, {:collection, :not_found}}
+      collection -> {:ok, collection}
+    end
+  end
+
+  @doc "The collections a product belongs to."
+  def list_collections_for(%Product{} = product) do
+    from(c in Collection,
+      join: cp in CollectionProduct,
+      on: cp.collection_id == c.id and cp.store == c.store,
+      where: cp.product_id == ^product.id and cp.store == ^product.store,
+      where: is_nil(c.deleted_at),
+      order_by: [asc: c.title]
+    )
+    |> Repo.all()
+  end
+
+  defp collection_ids([], _store), do: []
+
+  defp collection_ids(handles, store) do
+    from(c in Collection,
+      where: c.store == ^store and c.handle in ^List.wrap(handles),
+      where: is_nil(c.deleted_at),
+      select: c.id
+    )
+    |> Repo.all()
+  end
+end

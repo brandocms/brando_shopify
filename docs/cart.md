@@ -134,6 +134,53 @@ cart.addEventListener("cart:error", ({ detail: { error } }) => {
 });
 ```
 
+## Server-rendered markup
+
+By default the drawer's markup is rendered on the server from
+`BrandoShopify.Components.Cart`, not built in JavaScript. The element sends
+`x-brando-cart-html: 1`, the Cart Plug renders its cart component, and the markup
+rides along in the JSON payload as `html`.
+
+Alongside the JSON rather than instead of it: the element still needs the cart
+itself for `state()`, for the count, and for what it hands to `cart:change`
+listeners.
+
+So the whole drawer is a HEEx template you can read, override and style:
+
+```elixir
+forward "/cart", BrandoShopify.Plug.Cart,
+  store: :default,
+  component: &MyAppWeb.CartHTML.drawer/1,
+  labels: BrandoShopify.Cart.Labels.all()
+```
+
+Any 1-arity function component taking `cart`, `labels`, `error` and `format`
+assigns will do. Its buttons should carry `data-cart-action` — the element
+delegates clicks from its root, so swapped-in markup needs no rebinding:
+
+| Attribute | Does |
+|---|---|
+| `data-cart-action="close"` | closes the drawer |
+| `data-cart-action="remove"` + `data-line-id` | removes a line |
+| `data-cart-action="quantity"` + `data-line-id` + `data-quantity` | sets a quantity |
+| `data-cart-action="checkout"` | fetches a fresh checkout URL and navigates |
+
+`headless` consumers never send the header, so they never pay for rendering they
+would throw away. If the component raises, the JSON is still correct and the
+element falls back to its own renderer — a broken template does not take the
+cart down with it.
+
+### Subtotal, not total
+
+Shopify sets `totalAmountEstimated` whenever shipping is still unsettled, which
+is nearly always before checkout. The default footer therefore labels the figure
+a subtotal and says where the rest is added. Calling it a total is a small lie
+the buyer finds out about one screen later.
+
+Discounts Shopify already applied are shown too. Automatic ones need no code and
+are otherwise invisible — line prices simply come back lower, with nothing
+saying why.
+
 ## Translating the default renderer
 
 Every string the default renderer shows comes from `element.labels`, so a

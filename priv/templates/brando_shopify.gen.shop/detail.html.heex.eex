@@ -1,0 +1,47 @@
+<main id="content">
+  <article class="product">
+    <div class="product-media">
+      <.product_image product={@entry} loading="eager">
+        <:empty><span aria-hidden="true">No image</span></:empty>
+      </.product_image>
+    </div>
+
+    <div class="product-details">
+      <a href="<%= @path %>" class="back">&larr; Shop</a>
+
+      <h1>{@entry.title}</h1>
+
+      <.price product={@entry} />
+
+      <div :if={@entry.description_html not in [nil, ""]} class="description">
+        {Phoenix.HTML.raw(@entry.description_html)}
+      </div>
+
+      <%%!-- data-product-form marks the region the cart JS reads. The picker also
+            emits every variant on data-variants, which is what resolves a
+            combination of option values to a variant id. --%>
+      <div data-product-form>
+        <.variant_picker product={@entry} />
+
+        <button
+          type="button"
+          class="add-to-cart"
+          disabled
+          data-add-to-cart
+          data-label-ready="Add to cart"
+          data-label-busy="Adding…"
+          data-label-error="Something went wrong — try again"
+          data-label-unavailable="Sold out"
+        >
+          Choose an option
+        </button>
+      </div>
+
+      <ul :if={@collections != []} class="collections">
+        <li :for={collection <- @collections}>
+          <a href={collection_path(collection)}>{collection.title}</a>
+        </li>
+      </ul>
+    </div>
+  </article>
+</main>
