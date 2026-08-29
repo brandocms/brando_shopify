@@ -48,6 +48,7 @@ defmodule BrandoShopify.Config do
     :http,
     :req_options,
     :catalog_contexts,
+    :policies,
     :visibility
   ]
   @context_keys [:key, :country, :language, :sync_selling_plans]
@@ -87,7 +88,27 @@ defmodule BrandoShopify.Config do
           http: module(),
           req_options: keyword(),
           catalog_contexts: [catalog_context()],
+          policies: policies(),
           visibility: visibility_source()
+        }
+
+  @typedoc """
+  Where the host application publishes the shop's legal policies.
+
+    * `:path` — URL prefix, without a trailing slash. Language prefixes are the
+      host framework's business, not ours: Brando strips `/en` before routing,
+      so one path serves every locale.
+    * `:locales` — host locale to Shopify `LanguageCode`. `%{"no" => "NB"}`.
+      Shopify's codes are not the host's, and guessing between them is how a
+      Danish buyer ends up reading English.
+    * `:slugs` — per locale, the URL segment for each policy type. A locale
+      with no entry falls back to nothing: it is better to 404 than to serve a
+      Norwegian document under an English URL.
+  """
+  @type policies :: %{
+          path: String.t(),
+          locales: %{String.t() => String.t()},
+          slugs: %{String.t() => %{atom() => String.t()}}
         }
 
   @type catalog_context :: %{
@@ -112,6 +133,7 @@ defmodule BrandoShopify.Config do
             http: BrandoShopify.HTTP,
             req_options: [],
             catalog_contexts: [],
+            policies: %{path: "/policies", locales: %{}, slugs: %{}},
             visibility: :live
 
   @doc "Loads a named store from `config :brando_shopify, :stores`."
@@ -166,6 +188,7 @@ defmodule BrandoShopify.Config do
       http: value_or(values.http, BrandoShopify.HTTP),
       req_options: value_or(values.req_options, []),
       catalog_contexts: normalize_catalog_contexts(value_or(values.catalog_contexts, [])),
+      policies: normalize_policies(values.policies),
       visibility: value_or(values.visibility, :live)
     }
 
@@ -236,6 +259,7 @@ defmodule BrandoShopify.Config do
          :ok <- validate_req_options(config),
          :ok <- validate_http(config),
          :ok <- validate_catalog_contexts(config),
+         :ok <- validate_policies(config),
          :ok <- validate_visibility(config) do
       {:ok, config}
     end
@@ -327,6 +351,132 @@ defmodule BrandoShopify.Config do
   defp valid_domain?(_), do: false
 
   defp blank?(value), do: not (is_binary(value) and String.trim(value) != "")
+
+  @policy_types BrandoShopify.Policies.Policy.types()
+
+  defp normalize_policies(nil), do: %{path: "/policies", locales: %{}, slugs: %{}}
+
+  defp normalize_policies(values) when is_list(values) or is_map(values) do
+    values = Map.new(values, fn {key, value} -> {to_string(key), value} end)
+
+    %{
+      path: normalize_policies_path(Map.get(values, "path")),
+      locales: normalize_policy_locales(Map.get(values, "locales")),
+      slugs: normalize_policy_slugs(Map.get(values, "slugs"))
+    }
+  end
+
+  defp normalize_policies(invalid), do: invalid
+
+  defp normalize_policies_path(nil), do: "/policies"
+
+  defp normalize_policies_path(path) when is_binary(path) do
+    path = path |> String.trim() |> String.trim_trailing("/")
+
+    if String.starts_with?(path, "/"), do: path, else: "/" <> path
+  end
+
+  defp normalize_policies_path(path), do: path
+
+  defp normalize_policy_locales(nil), do: %{}
+
+  defp normalize_policy_locales(locales) when is_list(locales) or is_map(locales) do
+    Map.new(locales, fn {locale, code} ->
+      {to_string(locale), normalize_context_code(code)}
+    end)
+  end
+
+  defp normalize_policy_locales(invalid), do: invalid
+
+  defp normalize_policy_slugs(nil), do: %{}
+
+  defp normalize_policy_slugs(slugs) when is_list(slugs) or is_map(slugs) do
+    Map.new(slugs, fn {locale, types} -> {to_string(locale), normalize_policy_types(types)} end)
+  end
+
+  defp normalize_policy_slugs(invalid), do: invalid
+
+  defp normalize_policy_types(types) when is_list(types) or is_map(types) do
+    Map.new(types, fn {type, slug} ->
+      {normalize_policy_type(type), normalize_policy_slug(slug)}
+    end)
+  end
+
+  defp normalize_policy_types(invalid), do: invalid
+
+  defp normalize_policy_type(type) when is_atom(type), do: type
+
+  defp normalize_policy_type(type) when is_binary(type) do
+    Enum.find(@policy_types, type, &(Atom.to_string(&1) == type))
+  end
+
+  defp normalize_policy_type(type), do: type
+
+  defp normalize_policy_slug(slug) when is_binary(slug),
+    do: slug |> String.trim() |> String.trim("/")
+
+  defp normalize_policy_slug(slug), do: slug
+
+  defp validate_policies(%{policies: %{path: path, locales: locales, slugs: slugs}}) do
+    # A slug for a locale we have no Shopify language for can never be filled,
+    # so the route would exist and always 404. Reject it at boot instead.
+    orphans =
+      if is_map(slugs) and is_map(locales),
+        do: Map.keys(slugs) -- Map.keys(locales),
+        else: []
+
+    cond do
+      not valid_policies_path?(path) ->
+        {:error, {:invalid_policies_path, path}}
+
+      not valid_policy_locales?(locales) ->
+        {:error, {:invalid_policy_locales, locales}}
+
+      not valid_policy_slugs?(slugs) ->
+        {:error, {:invalid_policy_slugs, slugs}}
+
+      orphans != [] ->
+        {:error, {:policy_slugs_without_locale, orphans}}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp validate_policies(%{policies: policies}), do: {:error, {:invalid_policies, policies}}
+
+  defp valid_policies_path?(path) when is_binary(path),
+    do: String.starts_with?(path, "/") and not String.ends_with?(path, "/")
+
+  defp valid_policies_path?(_), do: false
+
+  defp valid_policy_locales?(locales) when is_map(locales) do
+    Enum.all?(locales, fn {locale, code} ->
+      is_binary(locale) and locale != "" and
+        is_binary(code) and Regex.match?(~r/^[A-Z]{2,3}(?:_[A-Z]{2})?$/, code)
+    end)
+  end
+
+  defp valid_policy_locales?(_), do: false
+
+  defp valid_policy_slugs?(slugs) when is_map(slugs) do
+    Enum.all?(slugs, fn {locale, types} ->
+      is_binary(locale) and locale != "" and valid_policy_type_slugs?(types)
+    end)
+  end
+
+  defp valid_policy_slugs?(_), do: false
+
+  defp valid_policy_type_slugs?(types) when is_map(types) do
+    slugs = Map.values(types)
+
+    Enum.all?(types, fn {type, slug} ->
+      type in @policy_types and is_binary(slug) and slug != "" and
+        not String.contains?(slug, "/")
+    end) and Enum.uniq(slugs) == slugs
+  end
+
+  defp valid_policy_type_slugs?(_), do: false
 
   defp normalize_catalog_contexts(contexts) when is_list(contexts) do
     Enum.map(contexts, fn

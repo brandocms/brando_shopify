@@ -472,6 +472,103 @@ defmodule BrandoShopify.Storefront do
     """
   end
 
+  @policy_fields """
+  id
+  handle
+  title
+  body
+  url
+  """
+
+  @policies """
+  query StorefrontShopPolicies(
+    $country: CountryCode,
+    $language: LanguageCode
+  ) @inContext(country: $country, language: $language) {
+    shop {
+      privacyPolicy { #{@policy_fields} }
+      refundPolicy { #{@policy_fields} }
+      shippingPolicy { #{@policy_fields} }
+      subscriptionPolicy { #{@policy_fields} }
+      termsOfService { #{@policy_fields} }
+    }
+  }
+  """
+
+  @available_languages """
+  query StorefrontAvailableLanguages {
+    localization {
+      availableLanguages {
+        isoCode
+        name
+        endonymName
+      }
+      language {
+        isoCode
+      }
+    }
+  }
+  """
+
+  @doc """
+  Fetches the shop's legal policies in one Storefront context.
+
+  Returns a map keyed by the Storefront field name (`"privacyPolicy"` and so
+  on). A policy the merchant has not written is `nil` rather than absent.
+
+  The applied context is verified, which matters more here than anywhere else
+  in this module: asking for a language the store has not published returns the
+  primary language's text with no error at all. A Danish buyer would silently
+  receive English terms. `validate_applied_context/2` turns that into a failure.
+  """
+  @spec shop_policies(keyword()) :: {:ok, map()} | {:error, BrandoShopify.Error.t()}
+  def shop_policies(opts \\ []) do
+    variables = put_context(%{}, opts)
+
+    with {:ok, response} <-
+           GraphQL.request(:storefront, @policies, variables,
+             operation_name: "StorefrontShopPolicies",
+             store: opts[:store] || :default,
+             config: opts[:config],
+             http: opts[:http],
+             req_options: opts[:req_options] || []
+           ),
+         :ok <- validate_applied_context(response, opts),
+         shop when is_map(shop) <- response.data["shop"] do
+      {:ok, shop}
+    else
+      nil ->
+        {:error,
+         %BrandoShopify.Error{
+           kind: :invalid_response,
+           message: "Shopify omitted the shop object"
+         }}
+
+      {:error, error} ->
+        {:error, error}
+    end
+  end
+
+  @doc """
+  Lists the languages published on the store, and which one is primary.
+
+  Used to explain a failed context rather than to decide one: a language that
+  is missing here is the reason `shop_policies/1` refused the response.
+  """
+  @spec available_languages(keyword()) :: {:ok, map()} | {:error, BrandoShopify.Error.t()}
+  def available_languages(opts \\ []) do
+    with {:ok, response} <-
+           GraphQL.request(:storefront, @available_languages, %{},
+             operation_name: "StorefrontAvailableLanguages",
+             store: opts[:store] || :default,
+             config: opts[:config],
+             http: opts[:http],
+             req_options: opts[:req_options] || []
+           ) do
+      {:ok, response.data["localization"] || %{}}
+    end
+  end
+
   defp put_context(variables, opts) do
     variables
     |> Map.put("country", normalize_code(opts[:country]))

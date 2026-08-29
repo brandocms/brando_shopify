@@ -1,0 +1,13 @@
+<article b-tpl="policy" data-moonwalk-section>
+  <div class="inner">
+    <h1 data-moonwalk="u"><%%= @entry.title %></h1>
+
+    <%%!-- Authored by the merchant in Shopify Admin. Sanitized on the way out:
+           trusted is not the same as unchecked. The documents carry their own
+           "last updated" line, which is why none is added here — `synced_at`
+           records when we last fetched, not when the terms last changed. --%>
+    <div class="policy-body" data-moonwalk="u">
+      <%%= Phoenix.HTML.raw(BrandoShopify.Policies.sanitize(@entry.body)) %>
+    </div>
+  </div>
+</article>

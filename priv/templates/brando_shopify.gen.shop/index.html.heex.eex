@@ -1,0 +1,13 @@
+<article b-tpl="policyIndex" data-moonwalk-section>
+  <div class="inner">
+    <h1 data-moonwalk="u"><%%= gettext("Terms and policies") %></h1>
+
+    <ul class="policy-list">
+      <li :for={policy <- @policies} data-moonwalk="u">
+        <a href={BrandoShopify.Policies.path(policy.type, @locale)}>
+          <%%= policy_label(policy.type) %>
+        </a>
+      </li>
+    </ul>
+  </div>
+</article>

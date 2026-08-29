@@ -15,6 +15,10 @@ defmodule Mix.Tasks.BrandoShopify.Gen.Shop do
   ## Options
 
     * `--path` — URL prefix for the pages. Defaults to `/shop`.
+    * `--policies-path` — URL prefix for the legal policies. Defaults to
+      `/policies`. Kept separate from `--path` on purpose: a privacy policy
+      covers the whole site, not just the shop, and a policy slug living under
+      the shop path would collide with the collection route.
     * `--partner-collections` — comma-separated collection handles that count as
       partner groups. Products belonging *only* to one are hidden from the main
       listing. Defaults to none.
@@ -32,7 +36,11 @@ defmodule Mix.Tasks.BrandoShopify.Gen.Shop do
 
   use Mix.Task
 
-  @templates ~w(shop.ex shop_controller.ex shop_html.ex list.html.heex detail.html.heex collection.html.heex)
+  @templates ~w(
+    shop.ex shop_controller.ex shop_html.ex
+    list.html.heex detail.html.heex collection.html.heex
+    policy_controller.ex policy_html.ex index.html.heex show.html.heex
+  )
 
   @impl Mix.Task
   def run(args) do
@@ -40,6 +48,7 @@ defmodule Mix.Tasks.BrandoShopify.Gen.Shop do
       OptionParser.parse(args,
         strict: [
           path: :string,
+          policies_path: :string,
           partner_collections: :string,
           context: :string,
           force: :boolean
@@ -71,6 +80,7 @@ defmodule Mix.Tasks.BrandoShopify.Gen.Shop do
       |> Enum.reject(&(&1 == ""))
 
     path = String.trim_trailing(opts[:path] || "/shop", "/")
+    policies_path = String.trim_trailing(opts[:policies_path] || "/policies", "/")
 
     [
       otp_app: otp_app,
@@ -81,6 +91,10 @@ defmodule Mix.Tasks.BrandoShopify.Gen.Shop do
       controller_module: "#{base}Web.#{context}Controller",
       context_file: Macro.underscore(context),
       path: path,
+      policies_path: policies_path,
+      policy_controller_module: "#{base}Web.PolicyController",
+      policy_html_module: "#{base}Web.PolicyHTML",
+      policy_file: "policy",
       partner_collections: partners
     ]
   end
@@ -104,6 +118,15 @@ defmodule Mix.Tasks.BrandoShopify.Gen.Shop do
 
         "shop_html.ex" ->
           "lib/#{bindings[:otp_app]}_web/controllers/#{file}_html.ex"
+
+        "policy_controller.ex" ->
+          "lib/#{bindings[:otp_app]}_web/controllers/policy_controller.ex"
+
+        "policy_html.ex" ->
+          "lib/#{bindings[:otp_app]}_web/controllers/policy_html.ex"
+
+        template when template in ["index.html.heex", "show.html.heex"] ->
+          "lib/#{bindings[:otp_app]}_web/controllers/policy_html/#{template}"
 
         template ->
           "lib/#{bindings[:otp_app]}_web/controllers/#{file}_html/#{template}"
@@ -143,8 +166,29 @@ defmodule Mix.Tasks.BrandoShopify.Gen.Shop do
         get "#{path}/product/:handle", #{controller}, :detail
         get "#{path}/:handle", #{controller}, :collection
 
+        get "#{bindings[:policies_path]}", #{bindings[:policy_controller_module]}, :index
+        get "#{bindings[:policies_path]}/:slug", #{bindings[:policy_controller_module]}, :show
+
     The product route has three segments and the collection route two, so they
-    cannot collide.
+    cannot collide. The policy routes sit outside the shop path for the same
+    reason — under it, `#{path}/privacy` would be indistinguishable from a
+    collection handle.
+
+    Then configure the policies, mapping your locales onto Shopify's language
+    codes and naming the slugs per language:
+
+        policies: [
+          path: "#{bindings[:policies_path]}",
+          locales: %{"en" => "EN"},
+          slugs: %{"en" => %{privacy_policy: "privacy"}}
+        ]
+
+    And sync them — there is no policy webhook, so nothing tells you when a
+    merchant edits one:
+
+        %{store: "default"}
+        |> BrandoShopify.Workers.Policy.new()
+        |> Oban.insert()
 
     Then import the components wherever you render them:
 

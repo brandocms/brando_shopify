@@ -1,0 +1,17 @@
+defmodule <%= @policy_html_module %> do
+  use <%= @web_module %>, :html
+
+  embed_templates "<%= @policy_file %>_html/*"
+
+  @doc """
+  Human-readable name for a policy type, for links and headings.
+
+  Falls back to the document's own title, which is what Shopify stores, so an
+  unlisted type still renders with a name.
+  """
+  def policy_label(:terms_of_service), do: gettext("Purchase terms")
+  def policy_label(:refund_policy), do: gettext("Returns and cancellation")
+  def policy_label(:shipping_policy), do: gettext("Shipping")
+  def policy_label(:privacy_policy), do: gettext("Privacy")
+  def policy_label(:subscription_policy), do: gettext("Subscriptions")
+end

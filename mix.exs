@@ -33,6 +33,7 @@ defmodule BrandoShopify.MixProject do
     [
       {:ecto_sql, "~> 3.13"},
       {:gettext, "~> 1.0"},
+      {:html_sanitize_ex, "~> 1.5"},
       {:jason, "~> 1.4"},
       {:oban, "~> 2.23"},
       {:phoenix_live_view, "~> 1.0"},

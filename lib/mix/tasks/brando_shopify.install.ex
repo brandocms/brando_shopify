@@ -28,14 +28,32 @@ defmodule Mix.Tasks.BrandoShopify.Install do
         |> Path.dirname()
         |> Path.join("priv/repo/migrations")
 
-    template =
-      Application.app_dir(:brando_shopify, "priv/templates/brando_shopify.install/migration.exs")
-
     File.mkdir_p!(migrations_path)
 
-    case Path.wildcard(Path.join(migrations_path, "*_create_shopify_catalog.exs")) do
+    # Ordered oldest first. Each is copied only when the host does not already
+    # have it, so running the task again after upgrading the package picks up
+    # new tables without disturbing migrations that have already run. The
+    # index offsets the timestamp so a fresh install orders them correctly.
+    [
+      {"migration.exs", "create_shopify_catalog"},
+      {"policies_migration.exs", "create_shopify_policies"}
+    ]
+    |> Enum.with_index()
+    |> Enum.each(fn {{template_name, migration_name}, index} ->
+      install_migration(migrations_path, template_name, migration_name, index)
+    end)
+  end
+
+  defp install_migration(migrations_path, template_name, migration_name, offset) do
+    template =
+      Application.app_dir(
+        :brando_shopify,
+        "priv/templates/brando_shopify.install/#{template_name}"
+      )
+
+    case Path.wildcard(Path.join(migrations_path, "*_#{migration_name}.exs")) do
       [] ->
-        filename = "#{timestamp()}_create_shopify_catalog.exs"
+        filename = "#{timestamp(offset)}_#{migration_name}.exs"
         destination = Path.join(migrations_path, filename)
         File.cp!(template, destination)
         Mix.shell().info([:green, "* creating ", :reset, Path.relative_to_cwd(destination)])
@@ -50,8 +68,9 @@ defmodule Mix.Tasks.BrandoShopify.Install do
     end
   end
 
-  defp timestamp do
+  defp timestamp(offset) do
     DateTime.utc_now()
+    |> DateTime.add(offset, :second)
     |> Calendar.strftime("%Y%m%d%H%M%S")
   end
 end

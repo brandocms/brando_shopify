@@ -1,0 +1,45 @@
+defmodule <%= @policy_controller_module %> do
+  @moduledoc """
+  Renders the shop's legal policies from the local Shopify projection.
+
+  The documents live in Shopify because that is what the Shopify-hosted
+  checkout links to. Rendering them here means the site and the checkout cannot
+  drift apart, and the reader stays on this domain instead of being handed to
+  an undesigned page on `checkout.shopify.com`.
+  """
+
+  use <%= @web_module %>, :controller
+
+  alias BrandoShopify.Policies
+
+  action_fallback <%= @web_module %>.FallbackController
+
+  @doc "Index of every policy configured for the current language."
+  def index(conn, _params) do
+    locale = Brando.I18n.get_language(conn)
+
+    conn
+    |> assign(:locale, locale)
+    |> assign(:policies, Policies.list(locale))
+    |> render(:index)
+  end
+
+  @doc """
+  One policy, addressed by its slug in the current language.
+
+  A slug belonging to another language deliberately misses: serving
+  `/en/terms/personvern` would put a Norwegian document under an English URL.
+  """
+  def show(conn, %{"slug" => slug}) do
+    locale = Brando.I18n.get_language(conn)
+
+    with %{} = policy <- Policies.get_by_slug(slug, locale) do
+      conn
+      |> assign(:locale, locale)
+      |> assign(:entry, policy)
+      |> render(:show)
+    else
+      nil -> {:error, {:policy, :not_found}}
+    end
+  end
+end

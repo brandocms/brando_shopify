@@ -207,3 +207,7 @@ const match = variants.find(v => names.every(n => v.options[n] === selection[n])
 `available?` on an option value means it appears in at least one purchasable
 variant — not that it is purchasable given the other selections. The server
 cannot know that, and claiming otherwise would put a lie in the API.
+
+See [policies.md](policies.md) for the shop's legal documents — how they are
+fetched, why Shopify owns them, and the silent language fallback to guard
+against.
