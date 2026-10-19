@@ -17,18 +17,19 @@ defmodule <%= @admin_module %>.Shopify.Components do
     {:sync, "<%= @admin_path %>/sync"}
   ]
 
-  @doc "The three screens as tabs. `current` is the one shown."
+  @doc "The three screens as tabs, in Brando's pill style. `current` is the one shown."
   attr :current, :atom, required: true, values: [:products, :collections, :sync]
 
   def tabs(assigns) do
     assigns = assign(assigns, :tabs, @tabs)
 
     ~H"""
-    <nav class="segmented-buttons shopify-tabs" aria-label={gettext("Shop")}>
+    <%%!-- Brando's one tab style (TabSwitch.css): links in a pill track, the
+          current screen raised. --%>
+    <nav class="pill-tabs shopify-tabs" aria-label={gettext("Shop")}>
       <.link
         :for={{tab, path} <- @tabs}
         navigate={path}
-        class={["btn", tab == @current && "btn--primary"]}
         aria-current={tab == @current && "page"}
       >
         {label(tab)}
