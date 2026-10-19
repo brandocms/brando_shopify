@@ -79,16 +79,17 @@ defmodule <%= @admin_module %>.Shopify.SettingsLive do
 
           <fieldset class="shopify-choices" style={@choices_style} disabled={!@can_edit?}>
             <legend class="workspace-sr-only">{gettext("Visibility")}</legend>
-            <label :for={state <- Settings.visibility_states()} class="shopify-choice" style="display: flex; gap: 12px; align-items: flex-start">
+            <label :for={state <- Settings.visibility_states()} class="shopify-choice" style={@choice_style}>
               <input
                 type="radio"
+                style="margin: 0"
                 name="settings[visibility]"
                 value={state}
                 checked={state == @visibility}
               />
-              <span style="display: grid; gap: 2px">
+              <span style="display: contents">
                 <strong>{visibility_label(state)}</strong>
-                <small>{visibility_help(state)}</small>
+                <small style="grid-column: 2">{visibility_help(state)}</small>
               </span>
             </label>
           </fieldset>
@@ -122,16 +123,17 @@ defmodule <%= @admin_module %>.Shopify.SettingsLive do
             <%%!-- An empty value, so unchecking every box saves an empty list
                   rather than leaving the field out. --%>
             <input type="hidden" name="settings[partner_collections][]" value="" />
-            <label :for={{collection, count} <- @collections} class="shopify-choice" style="display: flex; gap: 12px; align-items: flex-start">
+            <label :for={{collection, count} <- @collections} class="shopify-choice" style={@choice_style}>
               <input
                 type="checkbox"
+                style="margin: 0"
                 name="settings[partner_collections][]"
                 value={collection.handle}
                 checked={collection.handle in @partner_collections}
               />
-              <span style="display: grid; gap: 2px">
+              <span style="display: contents">
                 <strong>{collection.title}</strong>
-                <small>
+                <small style="grid-column: 2">
                   <code class="workspace-mono">{collection.handle}</code> ·
                   {ngettext("%{count} product", "%{count} products", count)}
                 </small>
@@ -248,6 +250,12 @@ defmodule <%= @admin_module %>.Shopify.SettingsLive do
     # Inline, like the thumbnails: the admin's stylesheet has no rule for these
     # lists, and the screens should need no CSS of the host's.
     |> assign(:choices_style, "display: grid; gap: 14px; margin: 0; padding: 18px 20px; border: 0")
+    # The box and the title share the first row, centred on each other whatever
+    # their sizes; the description sits under the title in the second column.
+    |> assign(
+      :choice_style,
+      "display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: 10px; row-gap: 2px; cursor: pointer"
+    )
     |> assign(:visibility, Catalogue.visibility())
     |> assign(:partner_collections, Catalogue.partner_collections())
     |> assign(:collections, Catalogue.list_collections())
