@@ -1,6 +1,5 @@
 defmodule <%= @html_module %> do
   use <%= @web_module %>, :html
-  use Phoenix.Component
 
   # The grid, card, image, price and variant picker come from the package. What
   # stays here is what it cannot know: your routes.

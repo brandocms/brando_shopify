@@ -2,6 +2,8 @@
 
 ## 0.2.0-dev
 
+- `mix brando_shopify.gen.shop` no longer writes a `use Phoenix.Component` the
+  host's `:html` already brings.
 - Add a store launch state — `:off`, `:preview`, `:live` — as the `:visibility`
   config key, with `BrandoShopify.visibility/1`, `BrandoShopify.live?/1` and
   `BrandoShopify.Plug.Visibility` to enforce it. A store is filled with products

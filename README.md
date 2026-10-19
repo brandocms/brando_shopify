@@ -168,10 +168,14 @@ replaces Brando's default outright.** From `Brando.Supervisor`:
 > an app-level `config :brando, Oban` REPLACES this entire default — queues AND
 > the cron jobs below are lost, not merged.
 
-So adding `shopify: 5` means copying Brando's whole default back first: its five
-queues, its `Cron`/`Pruner`/`Lifeline` plugins, and its six nightly cron jobs.
-Copy them from `Brando.Supervisor.oban_config/0` in the version you are on, and
-re-diff on upgrade. Two things quietly break otherwise — Brando's nightly
+So adding `shopify: 5` means copying Brando's whole default back first: every
+queue, the `Cron`/`Pruner`/`Lifeline` plugins, and every cron job. Copy them
+from `Brando.Supervisor.oban_config/0` in the version you are on, and re-diff on
+every upgrade: the list grows. Brando 0.55 added the `content_events`,
+`webhooks`, `notifications` and `search_index` queues and six cron jobs,
+including the scheduled-publishing sweep; without the queues, Brando's webhooks,
+notifications and admin search index never run (`mix brando.doctor` reports
+missing queues). Two things quietly break otherwise — Brando's nightly
 sitemap, revision and media cleanup stop running, and `config :my_app,
 cron_jobs:` stops being read, because Brando appended it through
 `extra_oban_cron_jobs/0` and that call goes with the default. Anything scheduled
