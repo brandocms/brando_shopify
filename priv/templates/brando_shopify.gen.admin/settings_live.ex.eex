@@ -29,6 +29,7 @@ defmodule <%= @admin_module %>.Shopify.SettingsLive do
        socket
        |> assign(:socket_connected, true)
        |> assign(:can_edit?, can_edit?(socket.assigns[:current_user]))
+       |> assign(:fetching_policies, false)
        |> assign_state()}
     else
       {:ok, assign(socket, :socket_connected, false)}
@@ -168,8 +169,9 @@ defmodule <%= @admin_module %>.Shopify.SettingsLive do
             class="btn"
             phx-click="fetch_policies"
             phx-disable-with={gettext("Starting…")}
+            disabled={@fetching_policies}
           >
-            {gettext("Fetch policies")}
+            {if @fetching_policies, do: gettext("Fetching…"), else: gettext("Fetch policies")}
           </button>
         </header>
       </section>
@@ -236,14 +238,56 @@ defmodule <%= @admin_module %>.Shopify.SettingsLive do
 
   def handle_event("fetch_policies", _params, %{assigns: %{can_edit?: true}} = socket) do
     case Catalogue.fetch_policies() do
-      {:ok, _job} -> send(self(), {:toast, gettext("Fetching policies from Shopify")})
-      {:error, _} -> send(self(), {:toast, gettext("Could not start the fetch")})
-    end
+      {:ok, job} ->
+        send(self(), {:toast, gettext("Fetching policies from Shopify")})
+        {:noreply, socket |> assign(:fetching_policies, true) |> watch_fetch(job.id, 1)}
 
-    {:noreply, socket}
+      {:error, _} ->
+        send(self(), {:toast, gettext("Could not start the fetch")})
+        {:noreply, socket}
+    end
   end
 
   def handle_event(_event, _params, socket), do: {:noreply, socket}
+
+  # The fetch is a job, so the screen asks after it until it has finished and
+  # then reads the new time. It takes a second or two; a minute of asking
+  # covers a slow Shopify without watching for ever.
+  @watch_every 1_000
+  @watch_tries 60
+
+  def handle_info({:watch_fetch, job_id, tries}, socket) do
+    case Catalogue.fetch_state(job_id) do
+      :done ->
+        send(self(), {:toast, gettext("Policies fetched")})
+
+        {:noreply,
+         socket
+         |> assign(:fetching_policies, false)
+         |> assign(:policies_synced_at, Catalogue.policies_synced_at())}
+
+      :retrying ->
+        send(self(), {:toast, gettext("Shopify did not answer. The fetch is tried again shortly.")})
+        {:noreply, assign(socket, :fetching_policies, false)}
+
+      :failed ->
+        send(self(), {:toast, gettext("Could not fetch the policies")})
+        {:noreply, assign(socket, :fetching_policies, false)}
+
+      :running when tries < @watch_tries ->
+        {:noreply, watch_fetch(socket, job_id, tries + 1)}
+
+      :running ->
+        {:noreply, assign(socket, :fetching_policies, false)}
+    end
+  end
+
+  def handle_info(_message, socket), do: {:noreply, socket}
+
+  defp watch_fetch(socket, job_id, tries) do
+    Process.send_after(self(), {:watch_fetch, job_id, tries}, @watch_every)
+    socket
+  end
 
   defp assign_state(socket) do
     socket

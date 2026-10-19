@@ -128,6 +128,21 @@ defmodule <%= @admin_module %>.Shopify.Catalogue do
     |> then(&Oban.insert(config().oban_name || Oban, &1))
   end
 
+  @doc """
+  How the fetch `fetch_policies/0` started is getting on: `:running`, `:done`,
+  `:retrying` (it failed, and Oban tries again later) or `:failed` (given up).
+  """
+  def fetch_state(job_id) do
+    case Oban.Repo.get(Oban.config(config().oban_name || Oban), Oban.Job, job_id) do
+      %Oban.Job{state: "completed"} -> :done
+      %Oban.Job{state: "retryable"} -> :retrying
+      %Oban.Job{state: state} when state in ~w(discarded cancelled) -> :failed
+      %Oban.Job{} -> :running
+      # Pruned, which only happens to a finished job.
+      nil -> :done
+    end
+  end
+
   @doc "When a webhook from Shopify last arrived, or nil."
   def last_webhook_at do
     from(r in BrandoShopify.Webhook.Receipt,
