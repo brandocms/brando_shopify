@@ -2,6 +2,17 @@
 
 ## 0.2.0-dev
 
+- Add `BrandoShopify.Settings`: a store's launch state and its partner
+  collections, saved in `shopify_settings` so an administrator changes them
+  without a deploy. Make it the store's `:visibility` source with
+  `{BrandoShopify.Settings, :visibility, [:default, :preview]}`; read partner
+  collections with `partner_collections/2`, in order (a product in two belongs
+  to the first). A store with no saved row, an unconfigured store, or a host
+  that has not run the migration yet all read as unsaved and use the fallback.
+  Reads are cached for 30 seconds. Run `mix brando_shopify.install` again to add
+  the migration; it skips the ones already installed.
+- `mix brando_shopify.gen.shop` reads partner collections from the settings,
+  with `--partner-collections` as the fallback until any are saved.
 - `mix brando_shopify.gen.shop` no longer writes a `use Phoenix.Component` the
   host's `:html` already brings.
 - Add a store launch state — `:off`, `:preview`, `:live` — as the `:visibility`

@@ -1,8 +1,11 @@
 defmodule Mix.Tasks.BrandoShopify.Install do
-  @shortdoc "Installs the BrandoShopify catalog migration"
+  @shortdoc "Installs the BrandoShopify migrations"
 
   @moduledoc """
-  Copies the BrandoShopify migration into the host application's `priv/repo/migrations`.
+  Copies the BrandoShopify migrations into the host application's
+  `priv/repo/migrations`: the catalogue, the legal policies and the store
+  settings. A migration already there is left alone, so rerunning the task after
+  an upgrade adds only the new ones.
 
       mix brando_shopify.install
 
@@ -36,7 +39,8 @@ defmodule Mix.Tasks.BrandoShopify.Install do
     # index offsets the timestamp so a fresh install orders them correctly.
     [
       {"migration.exs", "create_shopify_catalog"},
-      {"policies_migration.exs", "create_shopify_policies"}
+      {"policies_migration.exs", "create_shopify_policies"},
+      {"settings_migration.exs", "create_shopify_settings"}
     ]
     |> Enum.with_index()
     |> Enum.each(fn {{template_name, migration_name}, index} ->

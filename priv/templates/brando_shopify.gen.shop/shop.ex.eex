@@ -20,11 +20,14 @@ defmodule <%= @context_module %> do
   @store "default"
 
   @doc """
-  Collections treated as partner groups.
+  Collections treated as partner groups, in order.
 
   A product belonging *only* to one of these is hidden from the main listing.
+  Editable in the admin (`BrandoShopify.Settings`); these are the ones used
+  until anything is saved there.
   """
-  def partner_handles, do: <%= inspect(@partner_collections) %>
+  def partner_handles,
+    do: BrandoShopify.Settings.partner_collections(:default, <%= inspect(@partner_collections) %>)
 
   @doc """
   Products for the main listing.

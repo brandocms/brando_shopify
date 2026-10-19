@@ -82,13 +82,13 @@ defmodule Mix.Tasks.BrandoShopify.Gen.ShopTest do
       generate(["--partner-collections", "sykkelforeningen, turlaget"])
 
       assert read("lib/demo_shop/shop.ex") =~
-               ~s(def partner_handles, do: ["sykkelforeningen", "turlaget"])
+               ~s{BrandoShopify.Settings.partner_collections(:default, ["sykkelforeningen", "turlaget"])}
     end
 
     test "no partner collections is an empty list, not a crash" do
       generate([])
 
-      assert read("lib/demo_shop/shop.ex") =~ "def partner_handles, do: []"
+      assert read("lib/demo_shop/shop.ex") =~ "BrandoShopify.Settings.partner_collections(:default, [])"
     end
 
     test "honours a custom context name" do
