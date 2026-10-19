@@ -56,7 +56,7 @@ defmodule <%= @admin_module %>.Shopify.SyncLive do
       </Workspace.header>
 
       <section :if={@can_sync?} class="workspace-panel">
-        <header class="workspace-panel-heading">
+        <header class="workspace-panel-heading" style="border-bottom: 0; border-radius: 6px">
           <div>
             <h2>{gettext("Start a sync")}</h2>
             <p>
@@ -65,30 +65,30 @@ defmodule <%= @admin_module %>.Shopify.SyncLive do
               )}
             </p>
           </div>
+          <div class="workspace-heading-actions">
+            <button
+              type="button"
+              class="btn btn--primary"
+              phx-click="fetch_changes"
+              phx-disable-with={gettext("Starting…")}
+            >
+              {gettext("Fetch changes")}
+            </button>
+            <button
+              type="button"
+              class="btn"
+              phx-click="full_import"
+              phx-disable-with={gettext("Starting…")}
+              data-confirm={
+                gettext(
+                  "Import the whole catalogue again? It completes when Shopify reports back through its webhook."
+                )
+              }
+            >
+              {gettext("Full import")}
+            </button>
+          </div>
         </header>
-        <div class="workspace-heading-actions">
-          <button
-            type="button"
-            class="btn btn--primary"
-            phx-click="fetch_changes"
-            phx-disable-with={gettext("Starting…")}
-          >
-            {gettext("Fetch changes")}
-          </button>
-          <button
-            type="button"
-            class="btn"
-            phx-click="full_import"
-            phx-disable-with={gettext("Starting…")}
-            data-confirm={
-              gettext(
-                "Import the whole catalogue again? It completes when Shopify reports back through its webhook."
-              )
-            }
-          >
-            {gettext("Full import")}
-          </button>
-        </div>
       </section>
 
       <section class="workspace-panel">

@@ -47,9 +47,23 @@ defmodule <%= @admin_module %>.Shopify.SettingsLive do
         title={gettext("Shop settings")}
         subtitle={gettext("Whether the shop is open, and which collections are partner shops.")}
         icon="store"
-      />
+      >
+        <%%!-- Outside the form it submits, so it stays in view at the top as
+              Brando's own settings screens have it. --%>
+        <button
+          :if={@can_edit?}
+          type="submit"
+          form="shop-settings"
+          class="btn btn--primary"
+          phx-disable-with={gettext("Saving…")}
+        >
+          {gettext("Save")}
+        </button>
+      </Workspace.header>
 
-      <form phx-submit="save">
+      <%%!-- Brando spaces panels as siblings (.workspace-panel + .workspace-panel);
+            the form between them breaks that, so it keeps the same gap itself. --%>
+      <form id="shop-settings" phx-submit="save" style="margin-bottom: 24px">
         <section class="workspace-panel">
           <header class="workspace-panel-heading">
             <div>
@@ -133,15 +147,10 @@ defmodule <%= @admin_module %>.Shopify.SettingsLive do
           </p>
         </section>
 
-        <div :if={@can_edit?} class="workspace-heading-actions">
-          <button type="submit" class="btn btn--primary" phx-disable-with={gettext("Saving…")}>
-            {gettext("Save")}
-          </button>
-        </div>
       </form>
 
       <section class="workspace-panel">
-        <header class="workspace-panel-heading">
+        <header class="workspace-panel-heading" style="border-bottom: 0; border-radius: 6px">
           <div>
             <h2>{gettext("Legal policies")}</h2>
             <p>
@@ -151,9 +160,8 @@ defmodule <%= @admin_module %>.Shopify.SettingsLive do
             </p>
             <p>{gettext("Last fetched: %{at}", at: time(@policies_synced_at))}</p>
           </div>
-        </header>
-        <div :if={@can_edit?} class="workspace-heading-actions">
           <button
+            :if={@can_edit?}
             type="button"
             class="btn"
             phx-click="fetch_policies"
@@ -161,7 +169,7 @@ defmodule <%= @admin_module %>.Shopify.SettingsLive do
           >
             {gettext("Fetch policies")}
           </button>
-        </div>
+        </header>
       </section>
 
       <section class="workspace-panel">
