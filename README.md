@@ -151,6 +151,35 @@ rather than freezing into a copy.
 See [Brando integration](docs/brando-integration.md) for the slots each one
 exposes, and [Cart](docs/cart.md) for the cart element.
 
+## Admin screens
+
+The Brando admin can show what the sync stores — products, collections and
+recent sync runs, with buttons to fetch changes or start a full import:
+
+```bash
+mix brando_shopify.gen.admin --shop-path /shop
+```
+
+The screens are generated into your application rather than shipped, because
+they are built on Brando's admin and this package does not depend on Brando.
+Products and collections are read-only there: Shopify owns them, and the next
+webhook would overwrite an edit, so each row links to the Shopify admin. The
+task prints the router and menu lines to add.
+
+A full import completes through Shopify's `bulk_operations/finish` webhook, so
+on a machine Shopify cannot reach, use "Fetch changes" instead.
+
+It also generates a settings screen. The store's launch state and its partner
+collections are saved in `shopify_settings` (`BrandoShopify.Settings`), so
+opening the shop is a click in the admin rather than a deploy:
+
+```elixir
+visibility: {BrandoShopify.Settings, :visibility, [:default, :preview]}
+```
+
+The last argument is the state until one is saved — `:preview` keeps a fresh
+deployment from opening the shop on its own.
+
 ## Oban
 
 Every worker in this package runs on the `:shopify` queue. Without it, jobs are

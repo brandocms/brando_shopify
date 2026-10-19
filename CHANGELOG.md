@@ -11,8 +11,18 @@
   that has not run the migration yet all read as unsaved and use the fallback.
   Reads are cached for 30 seconds. Run `mix brando_shopify.install` again to add
   the migration; it skips the ones already installed.
+- `mix brando_shopify.gen.admin` also generates a settings screen
+  (`SettingsLive`): visibility, partner shops, fetching the legal policies, and
+  the store's connection. It prints a `config_item` line for Brando's
+  Configuration menu, and the `menu_subitem` to use on a Brando without it.
 - `mix brando_shopify.gen.shop` reads partner collections from the settings,
   with `--partner-collections` as the fallback until any are saved.
+- Add `mix brando_shopify.gen.admin`, which generates Brando admin screens
+  for the synced catalogue into the host: products, collections and sync runs,
+  read-only with links to the Shopify admin, plus "Fetch changes" and "Full
+  import". Generated rather than shipped so the package keeps no Brando
+  dependency. Change fetches that found nothing are left out of the run list;
+  the scheduled one runs every quarter of an hour.
 - `mix brando_shopify.gen.shop` no longer writes a `use Phoenix.Component` the
   host's `:html` already brings.
 - Add a store launch state — `:off`, `:preview`, `:live` — as the `:visibility`
